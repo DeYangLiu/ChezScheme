@@ -1,53 +1,50 @@
 # download upstream source
 git clone --depth 1 https://github.com/cisco/ChezScheme
 
-build mingw target on win7 host
-====
+# build mingw target on win7 host
 
-# patch
+
+## patch
 merge the contents of  patch-for-mingw directory.
 
-
+## build host
 msys>
  ./configure -m=ti3nt
 
-为支持windows xp, ta6nt/c/Makefile.i3nt 中的 EXELDFLAGS 修改为：
-EXELDFLAGS=/machine:ix86 /incremental:no /release /nologo /STACK:0x800000 /SUBSYSTEM:CONSOLE,5.01
+to support windows xp,
+append /SUBSYSTEM:CONSOLE,5.01 to EXELDFLAGS in ti3nt/c/Makefile.i3nt.
 
 cmd>
  cd ta6nt\c
  .\make.bat
 
 
+## update host boot to include modification from patch.
 msys>
-
-# update host boot to include modification from patch.
  (cd ta6nt; make -f Mf-boot ta6nt.boot)
 
 
-# build target boot
+## build target boot
  mkdir boot/ti3mw
  (cd ta6nt; make -f Mf-boot ti3mw.boot) #create new boot files
  
 
-# build target with the target c compiler
+## build target with the target c compiler
 ./configure -m=ti3mw
 make
 
-build arm target on linux host
-====
+# build arm target on linux host
 
-
-# build host
+## build host
 ./configure
 make
 
 
-# build target boot
+## build target boot
 mkdir boot/arm32le
 (cd a6le; make -f Mf-boot arm32le.boot)
 
-# build target
+## build target
 ./configure -m=arm32le CFLAGS="-O2 -march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=hard"
 make
 
