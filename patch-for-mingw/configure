@@ -1,0 +1,394 @@
+#! /bin/sh
+
+# configure
+# Copyright 1984-2017 Cisco Systems, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+machs=""; last=""; sep0=""; sep1=""; sep2=""; sep3=""; sep4=" and ";
+for fn in boot/*/scheme.boot ; do
+  machs=$machs$sep0$last
+  last=`echo $fn | sed -e 's/boot\/\(.*\)\/scheme.boot/\1/'`
+  sep0=$sep1; sep1=", "; sep2=$sep3; sep3=$sep4; sep4=", and "
+done
+machs=$machs$sep2$last
+
+m=""
+w=""
+threads=no
+temproot=""
+help=no
+gzipmanpages=yes
+installowner=""
+installgroup=""
+installbin=""
+installlib=""
+installman=""
+installschemename="scheme"
+installpetitename="petite"
+installscriptname="scheme-script"
+: ${CC:="gcc"}
+: ${CPPFLAGS:=""}
+: ${CFLAGS:=""}
+: ${LDFLAGS:=""}
+
+# On WSL, set OS to "Windows_NT" to create a Windows
+# build instead of a Linux (on Windows) build:
+#if [ "$OS" = "Windows_NT" ] ; then
+#    CONFIG_UNAME="CYGWIN_NT-"
+#else
+    CONFIG_UNAME=`uname`
+#fi
+
+case "${CONFIG_UNAME}" in
+  Linux)
+    if uname -a | egrep 'i386|i686|amd64|athlon|x86_64' > /dev/null 2>&1 ; then
+      m32=i3le
+      m64=a6le
+      tm32=ti3le
+      tm64=ta6le
+    elif uname -a | grep -i power > /dev/null 2>&1 ; then
+      m32=ppc32le
+      m64=""
+      tm32=tppc32le
+      tm64=""
+    fi
+    installprefix=/usr
+    installmansuffix=share/man
+    ;;
+  QNX)
+    if uname -a | egrep 'x86' > /dev/null 2>&1 ; then
+      m32=i3qnx
+      tm32=ti3qnx
+    fi
+    installprefix=/usr/local
+    installmansuffix=man
+    ;;
+  FreeBSD)
+    if uname -a | egrep 'i386|i686|amd64|athlon|x86_64' > /dev/null 2>&1 ; then
+      m32=i3fb
+      m64=a6fb
+      tm32=ti3fb
+      tm64=ta6fb
+    fi
+    installprefix=/usr/local
+    installmansuffix=man
+    ;;
+  OpenBSD)
+    if uname -a | egrep 'i386|i686|amd64|athlon|x86_64' > /dev/null 2>&1 ; then
+      m32=i3ob
+      m64=a6ob
+      tm32=ti3ob
+      tm64=ta6ob
+    fi
+    installprefix=/usr/local
+    installmansuffix=man
+    ;;
+  NetBSD)
+    if uname -a | egrep 'i386|i686|amd64|athlon|x86_64' > /dev/null 2>&1 ; then
+      m32=i3nb
+      m64=a6nb
+      tm32=ti3nb
+      tm64=ta6nb
+    fi
+    installprefix=/usr
+    installmansuffix=share/man
+    gzipmanpages=no
+    ;;
+  Darwin)
+    if uname -a | egrep 'i386|i686|amd64|athlon|x86_64' > /dev/null 2>&1 ; then
+      m32=i3osx
+      m64=a6osx
+      tm32=ti3osx
+      tm64=ta6osx
+    fi
+    installprefix=/usr/local
+    installmansuffix=share/man
+    ;;
+  SunOS)
+    if uname -a | egrep 'i386|i686|amd64|athlon|x86_64' > /dev/null 2>&1 ; then
+      m32=i3s2
+      m64=a6s2
+      tm32=ti3s2
+      tm64=ta6s2
+      installprefix=/usr
+      installmansuffix=share/man
+      gzipmanpages=no
+    fi
+    ;;
+  CYGWIN_NT-*)
+    if uname -a | egrep 'i386|i686|amd64|athlon|x86_64' > /dev/null 2>&1 ; then
+      m32=i3nt
+      m64=a6nt
+      tm32=ti3nt
+      tm64=ta6nt
+      installprefix=/usr/local
+      installmansuffix=share/man
+    fi
+    ;;
+  MINGW32_NT-*)
+      m32=i3mw
+      m64=a6mw
+      tm32=ti3mw
+      tm64=ta6mw
+      installprefix=/usr/local
+      installmansuffix=share/man
+    ;;
+
+  MINGW64_NT-*)
+      m32=i3mw
+      m64=a6mw
+      tm32=ti3mw
+      tm64=ta6mw
+      installprefix=/usr/local
+      installmansuffix=share/man
+    ;;
+
+esac
+
+threads=""
+bits=""
+
+while [ $# != 0 ] ; do
+  case $1 in
+    -m=*)
+      m=`echo $1 | sed -e 's/^-m=//'`
+      ;;
+    --machine=*)
+      m=`echo $1 | sed -e 's/^--machine=//'`
+      ;;
+    --threads)
+      threads=yes
+      ;;
+    --64)
+      bits=64
+      ;;
+    --32)
+      bits=32
+      ;;
+    --installprefix=*)
+      installprefix=`echo $1 | sed -e 's/^--installprefix=//'`
+      ;;
+    --installlib=*)
+      installlib=`echo $1 | sed -e 's/^--installlib=//'`
+      ;;
+    --installbin=*)
+      installbin=`echo $1 | sed -e 's/^--installbin=//'`
+      ;;
+    --installman=*)
+      installman=`echo $1 | sed -e 's/^--installman=//'`
+      ;;
+    --installowner=*)
+      installowner=`echo $1 | sed -e 's/^--installowner=//'`
+      ;;
+    --installgroup=*)
+      installgroup=`echo $1 | sed -e 's/^--installgroup=//'`
+      ;;
+    --installschemename=*)
+      installschemename=`echo $1 | sed -e 's/^--installschemename=//'`
+      ;;
+    --installpetitename=*)
+      installpetitename=`echo $1 | sed -e 's/^--installpetitename=//'`
+      ;;
+    --installscriptname=*)
+      installscriptname=`echo $1 | sed -e 's/^--installscriptname=//'`
+      ;;
+    --gzip-man-pages)
+      gzipmanpages=yes
+      ;;
+    --nogzip-man-pages)
+      gzipmanpages=no
+      ;;
+    --temproot=*)
+      temproot=`echo $1 | sed -e 's/^--temproot=//'`
+      ;;
+    --workarea=*)
+      w=`echo $1 | sed -e 's/^--workarea=//'`
+      ;;
+    --help)
+      help=yes
+      ;;
+    CC=*)
+      CC=`echo $1 | sed -e 's/^CC=//'`
+      ;;
+    CPPFLAGS=*)
+      CPPFLAGS=`echo $1 | sed -e 's/^CPPFLAGS=//'`
+      ;;
+    CFLAGS=*)
+      CFLAGS=`echo $1 | sed -e 's/^CFLAGS=//'`
+      ;;
+    LDFLAGS=*)
+      LDFLAGS=`echo $1 | sed -e 's/^LDFLAGS=//'`
+      ;;
+    *)
+      echo "option '$1' unrecognized or missing an argument; try $0 --help"
+      exit 1
+      ;;
+  esac
+  shift
+done
+
+if [ "$bits" = "" ] ; then
+  if uname -a | egrep 'amd64|x86_64' > /dev/null 2>&1 ; then
+    bits=64
+  else
+    bits=32
+  fi
+fi
+
+if [ "$threads" = "" ] ; then
+  threads=no
+fi
+
+if [ "$m" = "" ] ; then
+  if [ $bits = 64 ] ; then
+    if [ $threads = yes ] ; then m=$tm64 ; else m=$m64 ; fi
+  else
+    if [ $threads = yes ] ; then m=$tm32 ; else m=$m32 ; fi
+  fi
+fi
+
+if [ "$w" = "" ] ; then
+  w=$m
+fi
+
+if [ "$installbin" = "" ] ; then
+  installbin=$installprefix/bin
+fi
+
+if [ "$installlib" = "" ] ; then
+  installlib=$installprefix/lib
+fi
+
+if [ "$installman" = "" ] ; then
+  installman=$installprefix/$installmansuffix
+fi
+
+if [ "$help" = "yes" ]; then
+  echo "Purpose:"
+  echo "  $0 determines the machine type and constructs a custom Makefile"
+  echo "  and Mf-install, taking into account the options below."
+  echo ""
+  echo "Options (defaults shown in parens):"
+  echo "  --machine=<machine type>          explicitly specify machine type ($m)"
+  echo "  -m=<machine type>                 same as --machine <machine type> ($m)"
+  echo "  --threads                         specify threaded version ($threads)"
+  echo "  --32|--64                         specify 32/64-bit version ($bits)"
+  echo "  --installprefix=<pathname>        final installation root ($installprefix)"
+  echo "  --installbin=<pathname>           bin directory ($installbin)"
+  echo "  --installlib=<pathname>           lib directory ($installlib)"
+  echo "  --installman=<pathname>           manpage directory ($installman)"
+  echo "  --temproot=<pathname>             staging root ($temproot)"
+  echo "  --installowner=<ownername>        install with owner ($installowner)"
+  echo "  --installgroup=<groupname>        install with group ($installgroup)"
+  echo "  --installschemename=<schemename>  install with group ($installschemename)"
+  echo "  --installpetitename=<petitename>  install with group ($installpetitename)"
+  echo "  --installscriptname=<scriptname>  install with group ($installscriptname)"
+  echo "  --[no]gzip-man-pages              compress manual pages ($gzipmanpages)"
+  echo "  --workarea=<pathname>             build directory ($w)"
+  echo "  CPPFLAGS=<C preprocessor flags>   additional C preprocessor flags ($CPPFLAGS)"
+  echo "  CFLAGS=<C compiler flags>         additional C compiler flags ($CFLAGS)"
+  echo "  LDFLAGS=<linker flags>            additional linker flags ($LDFLAGS)"
+  echo ""
+  echo "Available machine types: $machs"
+  echo ""
+  echo "Examples:"
+  echo "  $0 --machine=i3le"
+  echo ""
+  echo "  set machine-type to i3le rather than to determined type"
+  echo ""
+  echo "  $0 --threads --installprefix=/usr/local"
+  echo ""
+  echo "  specify threaded version and set installation directory to /usr/local."
+  echo ""
+  echo "  $0 --installprefix=/usr/local --temproot=/tmp"
+  echo ""
+  echo "  declare the final destination to be /usr/local but staging area"
+  echo "  to be /tmp/usr/local.  Make will record the final destination in the"
+  echo "  installed manual pages but actually install the system and manual"
+  echo "  pages in the staging area."
+  echo ""
+  exit 0
+fi
+
+if [ "$m" = "" -o ! -f boot/$m/scheme.boot ] ; then
+  echo "no suitable machine type found"
+  echo "try rerunning as $0 -m=<machine type>"
+  echo "available machine types: $machs"
+  exit 1
+fi
+
+if [ -d '.git' ] && command -v git >/dev/null 2>&1 ; then
+  git submodule init && git submodule update || exit 1
+else
+  if [ ! -f 'nanopass/nanopass.ss' ] ; then
+    rmdir nanopass > /dev/null 2>&1
+    (curl  -L -o v1.9.tar.gz https://github.com/nanopass/nanopass-framework-scheme/archive/v1.9.tar.gz && tar -zxf v1.9.tar.gz && mv nanopass-framework-scheme-1.9 nanopass && rm v1.9.tar.gz) || exit 1
+  fi
+
+  if [ ! -f 'zlib/configure' ] ; then
+    rmdir zlib > /dev/null 2>&1
+    (curl -L -o v1.2.11.tar.gz https://github.com/madler/zlib/archive/v1.2.11.tar.gz && tar -xzf v1.2.11.tar.gz && mv zlib-1.2.11 zlib && rm v1.2.11.tar.gz) || exit 1
+  fi
+
+  if [ ! -f 'stex/Mf-stex' ] ; then
+    rmdir stex > /dev/null 2>&1
+    (curl -L -o v1.2.1.tar.gz https://github.com/dybvig/stex/archive/v1.2.1.tar.gz && tar -zxf v1.2.1.tar.gz && mv stex-1.2.1 stex && rm v1.2.1.tar.gz) || exit 1
+  fi
+fi
+
+./workarea $m $w
+
+sed -e 's/$(m)/'$m'/g'\
+    -e 's/$(workarea)/'$w'/g'\
+  makefiles/Makefile.in > Makefile
+
+sed -e 's/$(m)/'$m'/g'\
+    makefiles//Makefile-csug.in > csug/Makefile
+
+sed -e 's/$(m)/'$m'/g'\
+    makefiles//Makefile-release_notes.in > release_notes/Makefile
+
+cat makefiles/Makefile-workarea.in > $w/Makefile
+
+sed -e 's/$(m)/'$m'/g'\
+    -e 's/$(workarea)/'$w'/g'\
+    makefiles/Mf-boot.in > $w/Mf-boot
+
+sed -e "s;^m=none\$;m=$m;"\
+    -e "s;^InstallPrefix=.*\$;InstallPrefix=$installprefix;"\
+    -e "s;^InstallBin=.*\$;InstallBin=$installbin;"\
+    -e "s;^InstallLib=.*\$;InstallLib=$installlib;"\
+    -e "s;^InstallMan=.*\$;InstallMan=$installman/man1;"\
+    -e "s;^InstallOwner=.*\$;InstallOwner=$installowner;"\
+    -e "s;^InstallGroup=.*\$;InstallGroup=$installgroup;"\
+    -e "s;^TempRoot=.*;TempRoot=$temproot;"\
+    -e "s;^GzipManPages=.*$;GzipManPages=$gzipmanpages;"\
+    -e "s;^InstallSchemeName=.*$;InstallSchemeName=$installschemename;"\
+    -e "s;^InstallPetiteName=.*$;InstallPetiteName=$installpetitename;"\
+    -e "s;^InstallScriptName=.*$;InstallScriptName=$installscriptname;"\
+    makefiles/Mf-install.in > $w/Mf-install
+
+cat > $w/c/config.h << END
+#define SCHEME_SCRIPT "$installscriptname"
+#ifndef WIN32
+#define DEFAULT_HEAP_PATH "$installlib/csv%v/%m"
+#endif
+END
+
+cat > $w/c/Mf-config << END
+CC=$CC
+CPPFLAGS=$CPPFLAGS
+CFLAGS=$CFLAGS
+LDFLAGS=$LDFLAGS
+END
