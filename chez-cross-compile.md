@@ -1,19 +1,11 @@
+# download upstream source
 git clone --depth 1 https://github.com/cisco/ChezScheme
 
 build mingw target on win7 host
 ====
 
 # patch
-boot/ti3nt/equates.h
- machine_type_xxmw
- machine_type_alist
- machine_type_names
- machine_type_limit
-
-
-s/cmacros.ss
- i3mw ti3mw
- a6mw ta6mw
+merge the contents of  patch-for-mingw directory.
 
 
 msys>
