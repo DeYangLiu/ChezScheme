@@ -1,0 +1,64 @@
+Q: the directory has no jni, how to use ndk-build?
+A: ndk-build NDK_PROJECT_PATH=. NDK_APPLICATION_MK=./Application.mk
+
+
+Q: arm32le.c:44:38: error: '_SC_LEVEL1_DCACHE_LINESIZE
+A: ifdef it, use default 32
+
+Q: lockf is not defined.
+A: add "ANDROID" in c/version.h
+
+Q: what's changes in zlib/zconf.h?
+A: #define Z_HAVE_UNISTD_H #define Z_HAVE_STDARG_H
+
+Q: how to run?
+A: /sdcard/scheme -b /sdcard/petite.boot -b /sdcard/scheme.boot
+or SCHEMEHEAPDIRS=/sdcard ./scheme
+
+Q: when invoking scheme: only position independent executables (PIE) are supported
+A: since android 5.0, PIE is enforced to use by the linker.
+ LOCAL_CFLAGS += -pie -fPIE
+ LOCAL_LDFLAGS += -pie -fPIE
+
+
+Q: how to run a script?
+A: see chez user manual, e.g.
+ (load "/sdcard/test-backtrace.ss")
+ 
+
+Q: Program received signal SIGILL, Illegal instruction.
+0xb6cfe194 in S_return () at ../../../source/ChezScheme/c/schlib.c:322
+322         ptr tc = get_thread_context();
+   0xb6cfe18c <S_return+8>:     2b 4b   ldr     r3, [pc, #172]  ; (0xb6cfe23c <S_return+184>)
+   0xb6cfe18e <S_return+10>:    d3 58   ldr     r3, [r2, r3]
+   0xb6cfe190 <S_return+12>:    1b 68   ldr     r3, [r3, #0]
+   0xb6cfe192 <S_return+14>:    18 46   mov     r0, r3
+=> 0xb6cfe194 <S_return+16>:    d3 f7 f0 ee     blx     0xb6cd1f78
+   0xb6cfe198 <S_return+20>:    02 90   str     r0, [sp, #8]
+
+
+A: blx code is generated in fasl.c : MAKE_BLX, according [^1],
+    thumb is not defined, so we set LOCAL_ARM_MODE := arm.
+
+
+Q: integer operations like (sqrt 4) is ok but (sqrt 3) is not.
+A: s/arm32.ss pass floating-point values in vfp.
+
+Up to Armv7-A/R architecture (included)[^2], floating-point architecture is a floating-point coprocessor extension to the instruction set architectures. For historic reasons, the Floating-point Extension is also called the VFP Extension.
+
+The -mfloat-abi argument determines how floating-point values are passed between functions. softfp means they're always passed in integer registers or on the stack. If Android didn't specify softfp, the ARMv7-A version of the library would expect floats to show up in hardware registers.
+
+The armeabi-v7a ABI uses the -mfloat-abi=softfp switch to enforce the rule that the compiler must pass all double values in core register pairs during function calls, instead of dedicated floating-point ones. The system can perform all internal computations using the FP registers. Doing so speeds up the computations greatly.
+
+# NDK r9b added support for -mhard-float
+LOCAL_CFLAGS    := -O2 -march=armv7-a -mfloat-abi=hard -mfpu=vfpv3-d16 -mhard-float -D_NDK_MATH_NO_SOFTFP=1  
+LOCAL_LDFLAGS   := -lm_hard
+
+Due to the fact that user space is still technically soft float, VMs like Dalvik and Mono have absolutely no way of knowing whether a native function should be invoked as soft float or hard float. Dalvik ¡®solves¡¯ this by forcing all JNI functions to use soft float (ugh). Make sure to slap JNICALL on your JNI functions so they are marked as soft float - it seems a lot of code exists that doesn¡¯t do this, and it will break if compiled for hard float.
+
+
+
+
+[^1]: http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0489e/Cihfddaf.html
+[^2]: http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dai0425/ch04s09s03.html
+
