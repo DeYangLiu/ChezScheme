@@ -4,29 +4,28 @@ git clone --depth 1 https://github.com/cisco/ChezScheme
 # build mingw target on win7 host
 
 
+## build host
+msys>
+ ./configure -m=ti3nt #first config will clone dependencies from github.com.
+
+to support windows xp,
+append /SUBSYSTEM:CONSOLE,5.01 to EXELDFLAGS in ti3nt/c/Makefile.ti3nt.
+
+cmd>
+ cd ti3nt\c
+ .\make.bat
+
 ## patch
 merge the contents of  patch-for-mingw directory.
 
-## build host
-msys>
- ./configure -m=ti3nt
-
-to support windows xp,
-append /SUBSYSTEM:CONSOLE,5.01 to EXELDFLAGS in ti3nt/c/Makefile.i3nt.
-
-cmd>
- cd ta6nt\c
- .\make.bat
-
-
 ## update host boot to include modification from patch.
 msys>
- (cd ta6nt; make -f Mf-boot ta6nt.boot)
+ (cd ti3nt; make -f Mf-boot ti3nt.boot)
 
 
 ## build target boot
  mkdir boot/ti3mw
- (cd ta6nt; make -f Mf-boot ti3mw.boot) #create new boot files
+ (cd ti3nt; make -f Mf-boot ti3mw.boot) #create new boot files
  
 
 ## build target with the target c compiler

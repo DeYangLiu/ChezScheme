@@ -20,7 +20,7 @@ Cpu = I386
 mdclib = -lm  -lrpcrt4 -lole32
 #C = i686-w64-mingw32-gcc ${CPPFLAGS} -m32 -msse2 -Wpointer-arith -Wall -Wextra -O2 -D_REENTRANT -pthread ${CFLAGS}
 
-C = i686-w64-mingw32-gcc ${CPPFLAGS} -m32 -msse2 -Wpointer-arith -Wall -Wextra -O2 -D_REENTRANT  ${CFLAGS}
+C = gcc ${CPPFLAGS} -m32 -msse2 -Wpointer-arith -Wall -Wextra -O2 -D_REENTRANT  ${CFLAGS}
 o = o
 mdsrc = windows.c
 mdobj = windows.o
@@ -41,4 +41,4 @@ ${Scheme}: ${Kernel} ${Main}
 	$C -o ${Scheme}   -lntdll ${kernelobj} ../zlib/libz.a ${Main} ${mdclib} ${LDFLAGS}
 
 ../zlib/configure.log:
-	(cd ../zlib; CFLAGS=-m32 make -f win32/Makefile.gcc)
+	(cd ../zlib; LOC=-m32 make -f win32/Makefile.gcc)
